@@ -37,15 +37,6 @@ function pickWeighted<T>(items: T[], weight: (t: T) => number, rng: () => number
   return items[items.length - 1];
 }
 
-function shuffle<T>(a: T[], rng: () => number): T[] {
-  const out = [...a];
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]];
-  }
-  return out;
-}
-
 /** Put pinned items at (clamped) original indexes, fill remaining slots with `free`. */
 function merge(pinned: { item: PlanItem; index: number }[], free: PlanItem[]): PlanItem[] {
   const n = pinned.length + free.length;
@@ -66,7 +57,7 @@ export function totalSeconds(plan: PlanItem[]): number {
 /**
  * Builds a plan whose total is as close as possible to the minutes asked for
  * (never more than the tolerance over), favouring tracks not used recently.
- * Opens with a shorter track where possible.
+ * Free tracks are ordered longest first.
  */
 export function generatePlan(input: GenInput): PlanItem[] {
   const rng = input.rng ?? Math.random;
@@ -94,18 +85,11 @@ export function generatePlan(input: GenInput): PlanItem[] {
       total += t.duration_seconds;
     }
 
-    // ordering of the free tracks: prefer a short opener
-    const items = chosen.map((track) => ({ track, pinned: false }));
-    let order: PlanItem[] = merge(pinned, []);
-    let orderPen = Infinity;
-    for (let s = 0; s < 30; s++) {
-      const merged = merge(pinned, shuffle(items, rng));
-      const pen = merged.length ? merged[0].track.duration_seconds / 600 : 0;
-      if (pen < orderPen) {
-        orderPen = pen;
-        order = merged;
-      }
-    }
+    // order: longest tracks first (pinned tracks keep their own positions)
+    const items = chosen
+      .map((track) => ({ track, pinned: false }))
+      .sort((x, y) => y.track.duration_seconds - x.track.duration_seconds);
+    const order: PlanItem[] = merge(pinned, items);
 
     const dev = Math.abs(total - target);
     const score =
@@ -113,7 +97,6 @@ export function generatePlan(input: GenInput): PlanItem[] {
       Math.max(0, dev - tol) / 60 * 10 +
       (total > target + tol ? 1000 : 0) +
       chosen.reduce((s, t) => s + (1 - freshness(input.recent, t.id) / 4) * 8, 0) +
-      orderPen +
       Math.max(0, chosen.length + pinned.length - 8) * 3;
     if (score < bestScore) {
       bestScore = score;
