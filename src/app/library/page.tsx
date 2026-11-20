@@ -1,18 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { BUCKET } from "@/lib/db";
-import { CATEGORIES, formatDuration, type Track } from "@/lib/tracks";
+import { CATEGORIES, compareLabels, formatDuration, versionOf, type Track } from "@/lib/tracks";
 import { LabelPill } from "@/components/LabelPill";
 import { ImportDialog } from "./ImportDialog";
 import { EditDialog } from "./EditDialog";
+import { TrackActions } from "@/components/TrackActions";
 
 export default function LibraryPage() {
   const [tracks, setTracks] = useState<Track[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<number | "all">("all");
+  const [ver, setVer] = useState("all");
+  const [grouped, setGrouped] = useState(true);
   const [showInactive, setShowInactive] = useState(true);
   const [importing, setImporting] = useState(false);
   const [editing, setEditing] = useState<Track | null>(null);
@@ -33,13 +36,19 @@ export default function LibraryPage() {
 
   const shown = useMemo(() => {
     const s = q.trim().toLowerCase();
-    return (tracks ?? []).filter(
+    return (tracks ?? []).slice().sort((a, b) => a.category_minutes - b.category_minutes || compareLabels(a.label, b.label)).filter(
       (t) =>
         (cat === "all" || t.category_minutes === cat) &&
         (showInactive || t.active) &&
+        (ver === "all" || versionOf(t.label) === ver) &&
         (!s || t.label.toLowerCase().includes(s) || t.title.toLowerCase().includes(s))
     );
-  }, [tracks, q, cat, showInactive]);
+  }, [tracks, q, cat, ver, showInactive]);
+
+  const versions = useMemo(
+    () => [...new Set((tracks ?? []).map((t) => versionOf(t.label)).filter(Boolean))].sort((a, b) => a.length - b.length || a.localeCompare(b)),
+    [tracks]
+  );
 
   async function toggleActive(t: Track) {
     setTracks((prev) => prev!.map((x) => (x.id === t.id ? { ...x, active: !t.active } : x)));
@@ -81,6 +90,14 @@ export default function LibraryPage() {
             <option key={c} value={c}>{c} min</option>
           ))}
         </select>
+        <select className={input} value={ver} onChange={(e) => setVer(e.target.value)} aria-label="Version letter">
+          <option value="all">All versions</option>
+          {versions.map((v) => <option key={v} value={v}>Version {v}</option>)}
+        </select>
+        <label className="flex items-center gap-2">
+          <input type="checkbox" className="size-5" checked={grouped} onChange={(e) => setGrouped(e.target.checked)} />
+          Group by length
+        </label>
         <label className="flex items-center gap-2">
           <input type="checkbox" className="size-5" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />
           Show inactive
@@ -109,8 +126,22 @@ export default function LibraryPage() {
               </tr>
             </thead>
             <tbody>
-              {shown.map((t) => (
-                <tr key={t.id} className={`border-t border-black/10 dark:border-white/10 ${t.active ? "" : "opacity-50"}`}>
+              {shown.map((t, idx) => (
+                <Fragment key={t.id}>
+                {grouped && (idx === 0 || shown[idx - 1].category_minutes !== t.category_minutes) && (() => {
+                  const g = shown.filter((x) => x.category_minutes === t.category_minutes);
+                  return (
+                    <tr className="bg-indigo-500/10">
+                      <td colSpan={7} className="p-2 font-bold">
+                        {t.category_minutes} min
+                        <span className="ml-3 font-normal opacity-70">
+                          {g.length} track{g.length === 1 ? "" : "s"} · {g.map((x) => versionOf(x.label) || "?").join(" ")} · {formatDuration(g.reduce((a, x) => a + x.duration_seconds, 0))} total
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })()}
+                <tr className={`border-t border-black/10 dark:border-white/10 ${t.active ? "" : "opacity-50"}`}>
                   <td className="p-2"><LabelPill label={t.label} /></td>
                   <td className="p-2">
                     <div className="font-medium">{t.title}</div>
@@ -123,10 +154,12 @@ export default function LibraryPage() {
                     <input type="checkbox" className="size-6" checked={t.active} onChange={() => toggleActive(t)} aria-label={`Active ${t.label}`} />
                   </td>
                   <td className="whitespace-nowrap p-2 text-right">
+                    <TrackActions track={t} queue={shown} />
                     <button onClick={() => setEditing(t)} className="rounded-lg px-3 py-2 hover:bg-black/5 dark:hover:bg-white/10">Edit</button>
                     <button onClick={() => remove(t)} className="rounded-lg px-3 py-2 text-red-600 hover:bg-black/5 dark:hover:bg-white/10">Delete</button>
                   </td>
                 </tr>
+                </Fragment>
               ))}
               {tracks && shown.length === 0 && tracks.length > 0 && (
                 <tr><td colSpan={7} className="p-6 text-center opacity-60">No tracks match your filters.</td></tr>

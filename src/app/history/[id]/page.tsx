@@ -11,7 +11,9 @@ import { buildFileList, buildM3U, buildWhatsApp, fileSlug, planRows, whatsAppLin
 import { saveBlob, saveText, zipTracks } from "@/lib/download";
 import { renderPlanPng } from "@/lib/png";
 import { buildPdf } from "@/lib/pdf";
+import { usePlayer } from "@/components/PlayerProvider";
 import { LabelPill } from "@/components/LabelPill";
+import { TrackActions } from "@/components/TrackActions";
 
 const btn = "rounded-lg border border-black/25 px-4 py-3 font-semibold hover:bg-black/5 dark:border-white/30 dark:hover:bg-white/10";
 const primary = "rounded-lg bg-indigo-600 px-4 py-3 font-semibold text-white hover:bg-indigo-700 disabled:opacity-40";
@@ -33,6 +35,7 @@ function Export() {
   const [copied, setCopied] = useState<string | null>(null);
   const [png, setPng] = useState<{ url: string; blob: Blob } | null>(null);
   const [zipMsg, setZipMsg] = useState<string | null>(null);
+  const { play } = usePlayer();
 
   useEffect(() => {
     listSessions().then(setAll).catch((e) => setError(e.message));
@@ -121,6 +124,7 @@ function Export() {
                   <div className="text-sm opacity-60">{r.file}</div>
                 </td>
                 <td className="py-2 text-right tabular-nums">{r.length}</td>
+                <td className="py-2 text-right print:hidden"><TrackActions track={r.track} queue={session.items.map((i) => i.track)} /></td>
               </tr>
             ))}
           </tbody>
@@ -162,6 +166,12 @@ function Export() {
             // eslint-disable-next-line @next/next/no-img-element
             <img src={png.url} alt="Plan preview" className="max-h-[32rem] rounded-xl border border-black/15 dark:border-white/20" />
           )}
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-xl font-bold">Play the session</h2>
+          <button className={primary} disabled={!uploaded} onClick={() => play(session.items.map((i) => i.track), session.items.map((i) => i.track).find((t) => t.storage_path)!)}>▶ Play all uploaded tracks in order</button>
+          {!uploaded && <p className="text-sm opacity-70">None of these tracks were uploaded. Use the .m3u playlist below with the files in Downloads.</p>}
         </section>
 
         <section className="space-y-3">

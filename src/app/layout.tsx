@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
+import { PlayerProvider } from "@/components/PlayerProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -31,7 +32,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <Link href="/planner" className="rounded-lg px-4 py-2 hover:bg-black/5 dark:hover:bg-white/10">Planner</Link>
           <Link href="/history" className="rounded-lg px-4 py-2 hover:bg-black/5 dark:hover:bg-white/10">History</Link>
         </nav>
-        <main className="mx-auto w-full max-w-6xl flex-1 p-4">{children}</main>
+        <PlayerProvider>
+          <main className="mx-auto w-full max-w-6xl flex-1 p-4">{children}</main>
+        </PlayerProvider>
       </body>
     </html>
   );

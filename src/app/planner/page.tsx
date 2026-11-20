@@ -10,6 +10,7 @@ import { generatePlan, totalSeconds, type PlanItem } from "@/lib/generate";
 import { clockAt, dayName, nextSessionDate } from "@/lib/time";
 import { LabelPill } from "@/components/LabelPill";
 import { TrackPicker } from "@/components/TrackPicker";
+import { TrackActions } from "@/components/TrackActions";
 
 type Picker = { mode: "add" } | { mode: "swap"; index: number } | null;
 
@@ -190,6 +191,7 @@ function Planner() {
                     <div className="text-sm opacity-60">{p.track.file_name}{ago ? ` · used ${ago} session${ago > 1 ? "s" : ""} ago` : " · new"}</div>
                   </div>
                   <span className="tabular-nums">{formatDuration(p.track.duration_seconds)}</span>
+                  <TrackActions track={p.track} queue={plan.map((x) => x.track)} />
                   <div className="flex flex-wrap text-base">
                     <button className={btn} onClick={() => move(i, i - 1)} aria-label="Move up">▲</button>
                     <button className={btn} onClick={() => move(i, i + 1)} aria-label="Move down">▼</button>

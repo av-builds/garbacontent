@@ -84,3 +84,16 @@ export function readDuration(file: File): Promise<number> {
     el.src = url;
   });
 }
+
+/** Version letters of a label: "25B" -> "B". */
+export function versionOf(label: string): string {
+  return /^\d+([A-Za-z]+)$/.exec(label.trim())?.[1].toUpperCase() ?? "";
+}
+
+/** Natural label order: 5A, 5B ... 5Z, 5AA, then 20A ... */
+export function compareLabels(a: string, b: string): number {
+  const na = parseInt(a, 10), nb = parseInt(b, 10);
+  if (na !== nb) return na - nb;
+  const va = versionOf(a), vb = versionOf(b);
+  return va.length - vb.length || va.localeCompare(vb);
+}
