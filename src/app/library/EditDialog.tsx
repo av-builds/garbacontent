@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { CONTENT_CODES, CONTENT_CODE_INFO, SONG_TYPES, formatDuration, type ContentCode, type SongType, type Track } from "@/lib/tracks";
+import { CONTENT_CODES, CONTENT_CODE_INFO, SONG_TYPES, formatDuration, withCode, type ContentCode, type SongType, type Track } from "@/lib/tracks";
 import { Modal } from "@/components/Modal";
 
 export function EditDialog({ track, existing, onClose, onSaved }: { track: Track; existing: Track[]; onClose: () => void; onSaved: () => void }) {
@@ -43,7 +43,7 @@ export function EditDialog({ track, existing, onClose, onSaved }: { track: Track
           </select>
         </label>
         <label className="block">Content code
-          <select className={input} value={code} onChange={(e) => setCode(e.target.value as ContentCode | "")}>
+          <select className={input} value={code} onChange={(e) => { const c = e.target.value as ContentCode | ""; setCode(c); setTitle((t) => withCode(t, c)); }}>
             <option value="">None</option>
             {CONTENT_CODES.map((c) => <option key={c} value={c}>{c}: {CONTENT_CODE_INFO[c].name}</option>)}
           </select>

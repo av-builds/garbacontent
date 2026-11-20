@@ -1,13 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { BUCKET } from "@/lib/db";
-import { CONTENT_CODES, CONTENT_CODE_INFO, SONG_TYPES, compareLabels, formatDuration, type Track } from "@/lib/tracks";
+import { CONTENT_CODES, CONTENT_CODE_INFO, SONG_TYPES, compareLabels, formatDuration, type ContentCode, type Track } from "@/lib/tracks";
 import { LabelPill } from "@/components/LabelPill";
 import { TrackActions } from "@/components/TrackActions";
 import { ImportDialog } from "./ImportDialog";
 import { EditDialog } from "./EditDialog";
+
+const codeRank = (c: ContentCode | null) => (c ? CONTENT_CODES.indexOf(c) : CONTENT_CODES.length);
 
 export default function LibraryPage() {
   const [tracks, setTracks] = useState<Track[] | null>(null);
@@ -39,7 +41,7 @@ export default function LibraryPage() {
           (code === "all" || t.content_code === code || (code === "none" && !t.content_code)) &&
           (!s || t.label.toLowerCase().includes(s) || t.title.toLowerCase().includes(s))
       )
-      .sort((a, b) => compareLabels(a.label, b.label));
+      .sort((a, b) => codeRank(a.content_code) - codeRank(b.content_code) || compareLabels(a.label, b.label));
   }, [tracks, q, type, code, showInactive]);
 
   const totalSeconds = shown.reduce((a, t) => a + t.duration_seconds, 0);
@@ -117,8 +119,22 @@ export default function LibraryPage() {
               </tr>
             </thead>
             <tbody>
-              {shown.map((t) => (
-                <tr key={t.id} className={`border-t border-black/10 dark:border-white/10 ${t.active ? "" : "opacity-50"}`}>
+              {shown.map((t, idx) => (
+                <Fragment key={t.id}>
+                {(idx === 0 || shown[idx - 1].content_code !== t.content_code) && (() => {
+                  const g = shown.filter((x) => x.content_code === t.content_code);
+                  return (
+                    <tr className="bg-indigo-500/10">
+                      <td colSpan={8} className="p-2">
+                        <span className="font-bold">{t.content_code ? `${t.content_code}: ${CONTENT_CODE_INFO[t.content_code].name}` : "No code"}</span>
+                        <span className="ml-3 opacity-70">
+                          {t.content_code ? `${CONTENT_CODE_INFO[t.content_code].note} · ` : ""}{g.length} track{g.length === 1 ? "" : "s"} · {formatDuration(g.reduce((a, x) => a + x.duration_seconds, 0))}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })()}
+                <tr className={`border-t border-black/10 dark:border-white/10 ${t.active ? "" : "opacity-50"}`}>
                   <td className="p-2"><LabelPill label={t.label} /></td>
                   <td className="p-2">
                     <div className="font-medium">{t.title}</div>
@@ -144,6 +160,7 @@ export default function LibraryPage() {
                     <button onClick={() => remove(t)} className="rounded-lg px-3 py-2 text-red-600 hover:bg-black/5 dark:hover:bg-white/10">Delete</button>
                   </td>
                 </tr>
+                </Fragment>
               ))}
               {tracks && shown.length === 0 && tracks.length > 0 && (
                 <tr><td colSpan={8} className="p-6 text-center opacity-60">No tracks match your filters.</td></tr>

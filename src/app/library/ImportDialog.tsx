@@ -2,7 +2,7 @@
 import { useRef, useState } from "react";
 import { insertTracks, uploadAudio } from "@/lib/db";
 import {
-  CONTENT_CODES, DEFAULT_SONG_TYPE, SONG_TYPES, fileTypeOf, formatDuration, labelPrefix, nextLabel,
+  CONTENT_CODES, DEFAULT_SONG_TYPE, SONG_TYPES, fileTypeOf, formatDuration, labelPrefix, nextLabel, withCode,
   parseFileName, readDuration, type ContentCode, type SongType, type Track,
 } from "@/lib/tracks";
 import { Modal } from "@/components/Modal";
@@ -41,7 +41,7 @@ export function ImportDialog({ existing, onClose, onSaved }: { existing: Track[]
       const seconds = await readDuration(file);
       const p = parseFileName(file.name);
       const shownSeconds = seconds || (p.minutes ? p.minutes * 60 : 0);
-      added.push({ key: keyRef.current++, file, label: "", title: p.title, seconds: shownSeconds, upload: uploadAll, songType: typeAll, code: p.code ?? "" });
+      added.push({ key: keyRef.current++, file, label: "", title: withCode(p.title, p.code), seconds: shownSeconds, upload: uploadAll, songType: typeAll, code: p.code ?? "" });
     }
     // Labels are suggested from the content code (FI1, FI2, CG1 ...)
     setRows((prev) => relabel([...prev, ...added]));
@@ -52,10 +52,10 @@ export function ImportDialog({ existing, onClose, onSaved }: { existing: Track[]
   function update(key: number, patch: Partial<Row>) {
     setRows((prev) => {
       const next = prev.map((r) => (r.key === key ? { ...r, ...patch } : r));
-      // changing the content code re-suggests a label
+      // changing the content code re-suggests a label and updates the code in the name
       if (patch.code !== undefined) {
         const used = new Set([...existing.map((t) => t.label.toUpperCase()), ...next.filter((r) => r.key !== key).map((r) => r.label.toUpperCase())]);
-        return next.map((r) => (r.key === key ? { ...r, label: nextLabel(labelPrefix(patch.code!), used) } : r));
+        return next.map((r) => (r.key === key ? { ...r, label: nextLabel(labelPrefix(patch.code!), used), title: withCode(r.title, patch.code!) } : r));
       }
       return next;
     });

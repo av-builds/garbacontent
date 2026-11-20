@@ -34,6 +34,12 @@ export function formatDuration(sec: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
+/** Puts the content code at the end of the name: "ATL Nazhar" + FI -> "ATL Nazhar - FI". */
+export function withCode(title: string, code: ContentCode | "" | null): string {
+  const base = title.replace(/\s*-\s*(FI|CG|UG|IG)\s*$/i, "").trim();
+  return code ? `${base} - ${code}` : base;
+}
+
 /** Label prefix for a track: its content code, or "T" when it has none. */
 export function labelPrefix(code: ContentCode | "" | null): string {
   return code || "T";
