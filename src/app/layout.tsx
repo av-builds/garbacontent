@@ -31,6 +31,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <Link href="/library" className="rounded-lg px-4 py-2 hover:bg-black/5 dark:hover:bg-white/10">Library</Link>
           <Link href="/planner" className="rounded-lg px-4 py-2 hover:bg-black/5 dark:hover:bg-white/10">Planner</Link>
           <Link href="/history" className="rounded-lg px-4 py-2 hover:bg-black/5 dark:hover:bg-white/10">History</Link>
+          <form method="POST" action="/api/logout" className="ml-auto">
+            <button className="rounded-lg px-4 py-2 opacity-70 hover:bg-black/5 dark:hover:bg-white/10">Log out</button>
+          </form>
         </nav>
         <PlayerProvider>
           <main className="mx-auto w-full max-w-6xl flex-1 p-4">{children}</main>
