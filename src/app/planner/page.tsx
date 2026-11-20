@@ -13,7 +13,7 @@ type Picker = { mode: "add" } | { mode: "swap"; index: number } | null;
 
 export default function PlannerPage() {
   const [tracks, setTracks] = useState<Track[] | null>(null);
-  const [date, setDate] = useState(nextSessionDate());
+  const [date, setDate] = useState("");
   const [target, setTarget] = useState(75);
   const [start, setStart] = useState("20:00");
   const [notes, setNotes] = useState("");
@@ -32,8 +32,13 @@ export default function PlannerPage() {
     });
   }, []);
 
+  useEffect(() => {
+    setDate(nextSessionDate()); // eslint-disable-line react-hooks/set-state-in-effect
+  }, []);
+
   // usage in the previous 4 sessions before the chosen date
   useEffect(() => {
+    if (!date) return;
     let live = true;
     supabase
       .from("sessions")
@@ -121,7 +126,7 @@ export default function PlannerPage() {
             {[60, 75, 90].map((m) => <option key={m} value={m}>{m} min</option>)}
           </select>
         </label>
-        <button onClick={generate} disabled={!tracks} className="rounded-lg bg-indigo-600 px-5 py-3 font-semibold text-white hover:bg-indigo-700 disabled:opacity-40">
+        <button onClick={generate} disabled={!tracks || !date} className="rounded-lg bg-indigo-600 px-5 py-3 font-semibold text-white hover:bg-indigo-700 disabled:opacity-40">
           {plan.length ? "Regenerate (keeps pinned)" : "Generate plan"}
         </button>
       </div>
