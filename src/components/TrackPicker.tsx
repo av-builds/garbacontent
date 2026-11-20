@@ -35,7 +35,7 @@ export function TrackPicker({
               <button onClick={() => onPick(t)} className="flex w-full items-center gap-3 rounded-lg px-2 py-3 text-left hover:bg-black/5 dark:hover:bg-white/10">
                 <LabelPill label={t.label} />
                 <span className="flex-1">{t.title}</span>
-                <span className="text-sm opacity-60">{ago ? `used ${ago} ago` : "new"}</span>
+                <span className="text-sm opacity-60">{t.song_type} · {ago ? `used ${ago} ago` : "new"}</span>
                 <span className="tabular-nums">{formatDuration(t.duration_seconds)}</span>
               </button>
             </li>

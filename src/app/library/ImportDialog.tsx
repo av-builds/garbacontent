@@ -2,12 +2,12 @@
 import { useRef, useState } from "react";
 import { insertTracks, uploadAudio } from "@/lib/db";
 import {
-  CATEGORIES, categoryFromLabel, fileTypeOf, formatDuration, guessCategory, nextLabel,
-  parseFileName, readDuration, type Track,
+  CATEGORIES, DEFAULT_SONG_TYPE, SONG_TYPES, categoryFromLabel, fileTypeOf, formatDuration, guessCategory, nextLabel,
+  parseFileName, readDuration, type SongType, type Track,
 } from "@/lib/tracks";
 import { Modal } from "@/components/Modal";
 
-type Row = { key: number; file: File; label: string; title: string; category: number; seconds: number; upload: boolean };
+type Row = { key: number; file: File; label: string; title: string; category: number; seconds: number; upload: boolean; songType: SongType };
 
 export function ImportDialog({ existing, onClose, onSaved }: { existing: Track[]; onClose: () => void; onSaved: () => void }) {
   const [rows, setRows] = useState<Row[]>([]);
@@ -15,6 +15,7 @@ export function ImportDialog({ existing, onClose, onSaved }: { existing: Track[]
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [uploadAll, setUploadAll] = useState(false);
+  const [typeAll, setTypeAll] = useState<SongType>(DEFAULT_SONG_TYPE);
   const keyRef = useRef(0);
 
   /** Assign labels for rows lacking a valid unique one, keeping existing choices. */
@@ -40,7 +41,7 @@ export function ImportDialog({ existing, onClose, onSaved }: { existing: Track[]
       const seconds = await readDuration(file);
       const p = parseFileName(file.name);
       const category = (p.label && categoryFromLabel(p.label)) || guessCategory(seconds);
-      added.push({ key: keyRef.current++, file, label: p.label ?? "", title: p.title, category, seconds, upload: uploadAll });
+      added.push({ key: keyRef.current++, file, label: p.label ?? "", title: p.title, category, seconds, upload: uploadAll, songType: typeAll });
     }
     // Clear labels that were not parsed so relabel assigns them in order
     setRows((prev) => relabel([...prev, ...added]));
@@ -75,7 +76,7 @@ export function ImportDialog({ existing, onClose, onSaved }: { existing: Track[]
         const storage_path = r.upload ? await uploadAudio(r.file) : null;
         payload.push({
           label: labels[i], title: r.title.trim() || r.file.name, duration_seconds: r.seconds,
-          category_minutes: r.category, file_name: r.file.name, storage_path,
+          category_minutes: r.category, song_type: r.songType, file_name: r.file.name, storage_path,
           file_type: fileTypeOf(r.file.name)!, notes: null, active: true,
         });
       }
@@ -97,6 +98,13 @@ export function ImportDialog({ existing, onClose, onSaved }: { existing: Track[]
             <input type="file" multiple accept=".mp3,.m4a,.mp4,audio/*,video/mp4" className="hidden" onChange={(e) => { pick(e.target.files); e.target.value = ""; }} />
           </label>
           <label className="flex items-center gap-2">
+            Song type
+            <select className="rounded-lg border border-black/20 bg-transparent px-2 py-2 dark:border-white/25" value={typeAll}
+              onChange={(e) => { const v = e.target.value as SongType; setTypeAll(v); setRows((p) => p.map((r) => ({ ...r, songType: v }))); }}>
+              {SONG_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </label>
+          <label className="flex items-center gap-2">
             <input type="checkbox" className="size-5" checked={uploadAll} onChange={(e) => { setUploadAll(e.target.checked); setRows((p) => p.map((r) => ({ ...r, upload: e.target.checked }))); }} />
             Upload audio to Supabase Storage (enables in-app playback and ZIP)
           </label>
@@ -106,7 +114,7 @@ export function ImportDialog({ existing, onClose, onSaved }: { existing: Track[]
         {rows.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-base">
-              <thead className="text-sm uppercase opacity-60"><tr><th className="p-1">Label</th><th className="p-1">Title</th><th className="p-1">Length</th><th className="p-1">Cat.</th><th className="p-1">Upload</th><th /></tr></thead>
+              <thead className="text-sm uppercase opacity-60"><tr><th className="p-1">Label</th><th className="p-1">Title</th><th className="p-1">Length</th><th className="p-1">Cat.</th><th className="p-1">Song type</th><th className="p-1">Upload</th><th /></tr></thead>
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.key} className="border-t border-black/10 align-top dark:border-white/10">
@@ -119,6 +127,11 @@ export function ImportDialog({ existing, onClose, onSaved }: { existing: Track[]
                     <td className="p-1 w-28">
                       <select className={cell} value={r.category} onChange={(e) => update(r.key, { category: Number(e.target.value) })}>
                         {CATEGORIES.map((c) => <option key={c} value={c}>{c} min</option>)}
+                      </select>
+                    </td>
+                    <td className="p-1 w-44">
+                      <select className={cell} value={r.songType} onChange={(e) => update(r.key, { songType: e.target.value as SongType })}>
+                        {SONG_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
                       </select>
                     </td>
                     <td className="p-1"><input type="checkbox" className="size-5" checked={r.upload} onChange={(e) => update(r.key, { upload: e.target.checked })} /></td>

@@ -3,7 +3,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { BUCKET } from "@/lib/db";
-import { CATEGORIES, compareLabels, formatDuration, versionOf, type Track } from "@/lib/tracks";
+import { CATEGORIES, SONG_TYPES, compareLabels, formatDuration, versionOf, type Track } from "@/lib/tracks";
 import { LabelPill } from "@/components/LabelPill";
 import { ImportDialog } from "./ImportDialog";
 import { EditDialog } from "./EditDialog";
@@ -15,6 +15,7 @@ export default function LibraryPage() {
   const [q, setQ] = useState("");
   const [cat, setCat] = useState<number | "all">("all");
   const [ver, setVer] = useState("all");
+  const [type, setType] = useState<string>("all");
   const [grouped, setGrouped] = useState(true);
   const [showInactive, setShowInactive] = useState(true);
   const [importing, setImporting] = useState(false);
@@ -40,10 +41,11 @@ export default function LibraryPage() {
       (t) =>
         (cat === "all" || t.category_minutes === cat) &&
         (showInactive || t.active) &&
+        (type === "all" || t.song_type === type) &&
         (ver === "all" || versionOf(t.label) === ver) &&
         (!s || t.label.toLowerCase().includes(s) || t.title.toLowerCase().includes(s))
     );
-  }, [tracks, q, cat, ver, showInactive]);
+  }, [tracks, q, cat, ver, type, showInactive]);
 
   const versions = useMemo(
     () => [...new Set((tracks ?? []).map((t) => versionOf(t.label)).filter(Boolean))].sort((a, b) => a.length - b.length || a.localeCompare(b)),
@@ -84,6 +86,10 @@ export default function LibraryPage() {
 
       <div className="flex flex-wrap gap-3">
         <input className={`${input} min-w-48 flex-1`} placeholder="Search label or title" value={q} onChange={(e) => setQ(e.target.value)} />
+        <select className={input} value={type} onChange={(e) => setType(e.target.value)} aria-label="Song type">
+          <option value="all">All song types</option>
+          {SONG_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+        </select>
         <select className={input} value={cat} onChange={(e) => setCat(e.target.value === "all" ? "all" : Number(e.target.value))}>
           <option value="all">All categories</option>
           {CATEGORIES.map((c) => (
@@ -122,7 +128,7 @@ export default function LibraryPage() {
             <thead className="text-sm uppercase opacity-60">
               <tr>
                 <th className="p-2">Label</th><th className="p-2">Title</th><th className="p-2">Length</th>
-                <th className="p-2">Cat.</th><th className="p-2">Type</th><th className="p-2">Active</th><th className="p-2" />
+                <th className="p-2">Cat.</th><th className="p-2">Song type</th><th className="p-2">File</th><th className="p-2">Active</th><th className="p-2" />
               </tr>
             </thead>
             <tbody>
@@ -132,7 +138,7 @@ export default function LibraryPage() {
                   const g = shown.filter((x) => x.category_minutes === t.category_minutes);
                   return (
                     <tr className="bg-indigo-500/10">
-                      <td colSpan={7} className="p-2 font-bold">
+                      <td colSpan={8} className="p-2 font-bold">
                         {t.category_minutes} min
                         <span className="ml-3 font-normal opacity-70">
                           {g.length} track{g.length === 1 ? "" : "s"} · {g.map((x) => versionOf(x.label) || "?").join(" ")} · {formatDuration(g.reduce((a, x) => a + x.duration_seconds, 0))} total
@@ -149,6 +155,7 @@ export default function LibraryPage() {
                   </td>
                   <td className="p-2 tabular-nums">{formatDuration(t.duration_seconds)}</td>
                   <td className="p-2">{t.category_minutes}m</td>
+                  <td className="p-2"><span className="rounded-full bg-black/5 px-2 py-1 text-sm dark:bg-white/10">{t.song_type}</span></td>
                   <td className="p-2 uppercase">{t.file_type}</td>
                   <td className="p-2">
                     <input type="checkbox" className="size-6" checked={t.active} onChange={() => toggleActive(t)} aria-label={`Active ${t.label}`} />
@@ -162,7 +169,7 @@ export default function LibraryPage() {
                 </Fragment>
               ))}
               {tracks && shown.length === 0 && tracks.length > 0 && (
-                <tr><td colSpan={7} className="p-6 text-center opacity-60">No tracks match your filters.</td></tr>
+                <tr><td colSpan={8} className="p-6 text-center opacity-60">No tracks match your filters.</td></tr>
               )}
             </tbody>
           </table>

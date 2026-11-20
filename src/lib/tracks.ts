@@ -1,11 +1,16 @@
 export const CATEGORIES = [5, 20, 25, 40, 50, 60] as const;
 
+export const SONG_TYPES = ["Garba", "Ismaili Songs", "Central Asian Content"] as const;
+export type SongType = (typeof SONG_TYPES)[number];
+export const DEFAULT_SONG_TYPE: SongType = "Garba";
+
 export type Track = {
   id: string;
   label: string;
   title: string;
   duration_seconds: number;
   category_minutes: number;
+  song_type: SongType;
   file_name: string;
   storage_path: string | null;
   file_type: "mp3" | "m4a" | "mp4";
