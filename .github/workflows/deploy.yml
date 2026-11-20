@@ -23,7 +23,6 @@ jobs:
       # Public client values (the anon key is public by design and ships in the browser bundle).
       NEXT_PUBLIC_SUPABASE_URL: https://gkuxdwckkrayhjglvdxp.supabase.co
       NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdrdXhkd2Nra3JheWhqZ2x2ZHhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUxMjE5MjQsImV4cCI6MjExMDY5NzkyNH0.DiHs7NMEVS8yBT6ctFxmL11hBVlW4_2Ik7mQFCRioMY
-      GATE_PASSWORD: ${{ secrets.GATE_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -31,12 +30,6 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Hash the shared password (the password itself is never built into the site)
-        run: |
-          if [ -z "$GATE_PASSWORD" ]; then echo "::warning::GATE_PASSWORD secret is not set; the site will show 'no password configured'."; fi
-          if [ -n "$GATE_PASSWORD" ]; then
-            echo "NEXT_PUBLIC_GATE_HASH=$(printf 'garba-gate:v1:%s' "$GATE_PASSWORD" | sha256sum | cut -d' ' -f1)" >> "$GITHUB_ENV"
-          fi
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:
