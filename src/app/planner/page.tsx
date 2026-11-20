@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { getSession } from "@/lib/sessions";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { formatDuration, type Track } from "@/lib/tracks";
@@ -12,6 +14,15 @@ import { TrackPicker } from "@/components/TrackPicker";
 type Picker = { mode: "add" } | { mode: "swap"; index: number } | null;
 
 export default function PlannerPage() {
+  return (
+    <Suspense fallback={null}>
+      <Planner />
+    </Suspense>
+  );
+}
+
+function Planner() {
+  const sessionParam = useSearchParams().get("session");
   const [tracks, setTracks] = useState<Track[] | null>(null);
   const [date, setDate] = useState("");
   const [target, setTarget] = useState(75);
@@ -33,8 +44,23 @@ export default function PlannerPage() {
   }, []);
 
   useEffect(() => {
-    setDate(nextSessionDate()); // eslint-disable-line react-hooks/set-state-in-effect
-  }, []);
+    if (!sessionParam) {
+      setDate(nextSessionDate()); // eslint-disable-line react-hooks/set-state-in-effect
+      return;
+    }
+    getSession(sessionParam)
+      .then((s) => {
+        if (!s) return setStatus("That saved plan no longer exists.");
+        setDate(s.session_date);
+        setTarget(s.target_minutes);
+        if (s.start_time) setStart(s.start_time);
+        setNotes(s.notes ?? "");
+        setPlan(s.items);
+        setSavedId(s.id);
+        setStatus(null);
+      })
+      .catch((e) => setStatus(e.message));
+  }, [sessionParam]);
 
   // usage in the previous 4 sessions before the chosen date
   useEffect(() => {
