@@ -25,3 +25,10 @@ export function clockAt(start: string, offsetSec: number): string {
   const ampm = hh >= 12 ? "pm" : "am";
   return `${hh % 12 || 12}:${String(mm).padStart(2, "0")} ${ampm}`;
 }
+
+/** "2026-11-21" -> "Saturday 21 Nov" */
+export function shortDate(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  return `${dt.toLocaleDateString("en-NZ", { weekday: "long" })} ${d} ${dt.toLocaleDateString("en-NZ", { month: "short" })}`;
+}

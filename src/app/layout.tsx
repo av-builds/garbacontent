@@ -25,7 +25,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col text-lg">
-        <nav className="flex gap-2 border-b border-black/10 dark:border-white/15 px-4 py-3 text-base font-semibold">
+        <nav className="print:hidden flex gap-2 border-b border-black/10 dark:border-white/15 px-4 py-3 text-base font-semibold">
           <span className="mr-4 self-center text-xl">Garba Planner</span>
           <Link href="/library" className="rounded-lg px-4 py-2 hover:bg-black/5 dark:hover:bg-white/10">Library</Link>
           <Link href="/planner" className="rounded-lg px-4 py-2 hover:bg-black/5 dark:hover:bg-white/10">Planner</Link>

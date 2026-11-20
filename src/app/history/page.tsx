@@ -50,6 +50,7 @@ export default function HistoryPage() {
                 {s.start_time ? ` · starts ${clockAt(s.start_time, 0)}` : ""}
               </span>
               <span className="ml-auto flex gap-2">
+                <Link href={`/history/${s.id}`} className="rounded-lg px-4 py-2 font-semibold text-indigo-600 hover:bg-black/5 dark:text-indigo-400 dark:hover:bg-white/10">Share &amp; export</Link>
                 <Link href={`/planner?session=${s.id}`} className="rounded-lg px-4 py-2 font-semibold text-indigo-600 hover:bg-black/5 dark:text-indigo-400 dark:hover:bg-white/10">Open in planner</Link>
                 <button onClick={() => remove(s)} className="rounded-lg px-4 py-2 text-red-600 hover:bg-black/5 dark:hover:bg-white/10">Delete</button>
               </span>
