@@ -1,13 +1,12 @@
 "use client";
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { CATEGORIES, CONTENT_CODES, CONTENT_CODE_INFO, SONG_TYPES, categoryFromLabel, formatDuration, type ContentCode, type SongType, type Track } from "@/lib/tracks";
+import { CONTENT_CODES, CONTENT_CODE_INFO, SONG_TYPES, formatDuration, type ContentCode, type SongType, type Track } from "@/lib/tracks";
 import { Modal } from "@/components/Modal";
 
 export function EditDialog({ track, existing, onClose, onSaved }: { track: Track; existing: Track[]; onClose: () => void; onSaved: () => void }) {
   const [label, setLabel] = useState(track.label);
   const [title, setTitle] = useState(track.title);
-  const [category, setCategory] = useState(track.category_minutes);
   const [songType, setSongType] = useState<SongType>(track.song_type);
   const [code, setCode] = useState<ContentCode | "">(track.content_code ?? "");
   const [fileName, setFileName] = useState(track.file_name);
@@ -22,7 +21,7 @@ export function EditDialog({ track, existing, onClose, onSaved }: { track: Track
     if (!m) return setErr("Length must look like 5:10.");
     if (existing.some((t) => t.id !== track.id && t.label.toUpperCase() === l)) return setErr(`Label ${l} is already used.`);
     const { error } = await supabase.from("tracks").update({
-      label: l, title: title.trim(), category_minutes: category, song_type: songType, content_code: code || null, file_name: fileName.trim(),
+      label: l, title: title.trim(), song_type: songType, content_code: code || null, file_name: fileName.trim(),
       duration_seconds: Number(m[1]) * 60 + Number(m[2]), notes: notes.trim() || null,
     }).eq("id", track.id);
     if (error) setErr(error.message);
@@ -34,17 +33,10 @@ export function EditDialog({ track, existing, onClose, onSaved }: { track: Track
     <Modal title={`Edit ${track.label}`} onClose={onClose}>
       <div className="space-y-3">
         <label className="block">Label
-          <input className={input} value={label} onChange={(e) => { setLabel(e.target.value); const c = categoryFromLabel(e.target.value); if (c) setCategory(c); }} />
+          <input className={input} value={label} onChange={(e) => setLabel(e.target.value)} />
         </label>
         <label className="block">Title<input className={input} value={title} onChange={(e) => setTitle(e.target.value)} /></label>
-        <div className="flex gap-3">
-          <label className="flex-1">Length (m:ss)<input className={input} value={mins} onChange={(e) => setMins(e.target.value)} /></label>
-          <label className="flex-1">Category
-            <select className={input} value={category} onChange={(e) => setCategory(Number(e.target.value))}>
-              {CATEGORIES.map((c) => <option key={c} value={c}>{c} min</option>)}
-            </select>
-          </label>
-        </div>
+        <label className="block">Length (m:ss)<input className={input} value={mins} onChange={(e) => setMins(e.target.value)} /></label>
         <label className="block">Song type
           <select className={input} value={songType} onChange={(e) => setSongType(e.target.value as SongType)}>
             {SONG_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}

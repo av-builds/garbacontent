@@ -27,6 +27,7 @@ function Planner() {
   const [tracks, setTracks] = useState<Track[] | null>(null);
   const [date, setDate] = useState("");
   const [target, setTarget] = useState(75);
+  const [targetText, setTargetText] = useState("75");
   const [start, setStart] = useState("20:00");
   const [notes, setNotes] = useState("");
   const [types, setTypes] = useState<SongType[]>([DEFAULT_SONG_TYPE]);
@@ -40,7 +41,7 @@ function Planner() {
   const [status, setStatus] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.from("tracks").select("*").order("category_minutes").order("label").then(({ data, error }) => {
+    supabase.from("tracks").select("*").order("label").then(({ data, error }) => {
       if (error) setStatus(error.message);
       else setTracks(data as Track[]);
     });
@@ -56,6 +57,7 @@ function Planner() {
         if (!s) return setStatus("That saved plan no longer exists.");
         setDate(s.session_date);
         setTarget(s.target_minutes);
+        setTargetText(String(s.target_minutes));
         if (s.start_time) setStart(s.start_time);
         setNotes(s.notes ?? "");
         setPlan(s.items);
@@ -93,7 +95,10 @@ function Planner() {
 
   function generate() {
     if (!tracks) return;
-    setPlan(generatePlan({ tracks: tracks.filter((t) => types.includes(t.song_type) && (!t.content_code || codes.includes(t.content_code))), targetMin: target, current: plan, excluded: new Set(excluded.map((t) => t.id)), recent }));
+    const minutes = Math.round(Number(targetText));
+    if (!Number.isFinite(minutes) || minutes < 1) return setStatus("Enter how many minutes of content you need.");
+    setTarget(minutes);
+    setPlan(generatePlan({ tracks: tracks.filter((t) => types.includes(t.song_type) && (!t.content_code || codes.includes(t.content_code))), targetMin: minutes, current: plan, excluded: new Set(excluded.map((t) => t.id)), recent }));
     setStatus(null);
   }
 
@@ -147,14 +152,20 @@ function Planner() {
   return (
     <div className="space-y-5">
       <h1 className="text-2xl font-bold">Planner</h1>
+      <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); generate(); }}>
       <div className="flex flex-wrap items-end gap-3">
+        <label className="block text-base font-semibold">Minutes of content needed
+          <input type="number" inputMode="numeric" min={1} max={600} autoFocus className={`${input} block w-48 text-2xl font-bold`} value={targetText} onChange={(e) => setTargetText(e.target.value)} />
+        </label>
+        <button type="submit" disabled={!tracks || !date || types.length === 0 || codes.length === 0} className="rounded-lg bg-indigo-600 px-6 py-4 text-lg font-semibold text-white hover:bg-indigo-700 disabled:opacity-40">
+          {plan.length ? "Regenerate (keeps pinned)" : "Generate plan"}
+        </button>
         <label className="block text-sm">Date<input type="date" className={`${input} block`} value={date} onChange={(e) => { setDate(e.target.value); setSavedId(null); }} /></label>
         <label className="block text-sm">Start time<input type="time" className={`${input} block`} value={start} onChange={(e) => setStart(e.target.value)} /></label>
-        <label className="block text-sm">Target
-          <select className={`${input} block`} value={target} onChange={(e) => setTarget(Number(e.target.value))}>
-            {[60, 75, 90].map((m) => <option key={m} value={m}>{m} min</option>)}
-          </select>
-        </label>
+      </div>
+      <details className="rounded-lg border border-black/15 p-3 dark:border-white/20">
+      <summary className="cursor-pointer font-semibold">Filters (song types and content codes)</summary>
+      <div className="mt-3 flex flex-wrap gap-x-8 gap-y-3">
         <fieldset className="flex flex-wrap items-center gap-x-4 gap-y-1 text-base">
           <legend className="text-sm">Song types to include</legend>
           {SONG_TYPES.map((t) => (
@@ -175,14 +186,13 @@ function Planner() {
             </label>
           ))}
         </fieldset>
-        <button onClick={generate} disabled={!tracks || !date || types.length === 0 || codes.length === 0} className="rounded-lg bg-indigo-600 px-5 py-3 font-semibold text-white hover:bg-indigo-700 disabled:opacity-40">
-          {plan.length ? "Regenerate (keeps pinned)" : "Generate plan"}
-        </button>
       </div>
+      </details>
+      </form>
 
       {plan.length === 0 ? (
         <p className="rounded-xl border border-dashed border-black/25 p-8 text-center opacity-70 dark:border-white/25">
-          Pick a date and length, then press Generate plan. {dayName(date)}, {target} min.
+          Type how many minutes of content you need and press Enter. {dayName(date)}.
         </p>
       ) : (
         <>
@@ -190,7 +200,7 @@ function Planner() {
             <strong>{dayName(date)} {date}</strong>
             <span>Total <strong className="tabular-nums">{formatDuration(total)}</strong> ({Math.round(total / 60)} min)</span>
             <span>Ends {clockAt(start, total)}</span>
-            {total > 90 * 60 && <span className="font-semibold text-red-600">Over 90 min!</span>}
+            {Math.abs(total - target * 60) > 10 * 60 && <span className="opacity-70">Target was {target} min</span>}
           </div>
           <ol className="space-y-2">
             {plan.map((p, i) => {

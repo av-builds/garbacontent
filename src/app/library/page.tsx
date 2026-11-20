@@ -1,33 +1,26 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { BUCKET } from "@/lib/db";
-import { CATEGORIES, CONTENT_CODES, CONTENT_CODE_INFO, SONG_TYPES, compareLabels, formatDuration, versionOf, type Track } from "@/lib/tracks";
+import { CONTENT_CODES, CONTENT_CODE_INFO, SONG_TYPES, compareLabels, formatDuration, type Track } from "@/lib/tracks";
 import { LabelPill } from "@/components/LabelPill";
+import { TrackActions } from "@/components/TrackActions";
 import { ImportDialog } from "./ImportDialog";
 import { EditDialog } from "./EditDialog";
-import { TrackActions } from "@/components/TrackActions";
 
 export default function LibraryPage() {
   const [tracks, setTracks] = useState<Track[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
-  const [cat, setCat] = useState<number | "all">("all");
-  const [ver, setVer] = useState("all");
   const [type, setType] = useState<string>("all");
   const [code, setCode] = useState<string>("all");
-  const [grouped, setGrouped] = useState(true);
   const [showInactive, setShowInactive] = useState(true);
   const [importing, setImporting] = useState(false);
   const [editing, setEditing] = useState<Track | null>(null);
 
   const load = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("tracks")
-      .select("*")
-      .order("category_minutes")
-      .order("label");
+    const { data, error } = await supabase.from("tracks").select("*").order("label");
     if (error) setError(error.message);
     else setTracks(data as Track[]);
   }, []);
@@ -38,21 +31,18 @@ export default function LibraryPage() {
 
   const shown = useMemo(() => {
     const s = q.trim().toLowerCase();
-    return (tracks ?? []).slice().sort((a, b) => a.category_minutes - b.category_minutes || compareLabels(a.label, b.label)).filter(
-      (t) =>
-        (cat === "all" || t.category_minutes === cat) &&
-        (showInactive || t.active) &&
-        (type === "all" || t.song_type === type) &&
-        (code === "all" || t.content_code === code || (code === "none" && !t.content_code)) &&
-        (ver === "all" || versionOf(t.label) === ver) &&
-        (!s || t.label.toLowerCase().includes(s) || t.title.toLowerCase().includes(s))
-    );
-  }, [tracks, q, cat, ver, type, code, showInactive]);
+    return (tracks ?? [])
+      .filter(
+        (t) =>
+          (showInactive || t.active) &&
+          (type === "all" || t.song_type === type) &&
+          (code === "all" || t.content_code === code || (code === "none" && !t.content_code)) &&
+          (!s || t.label.toLowerCase().includes(s) || t.title.toLowerCase().includes(s))
+      )
+      .sort((a, b) => compareLabels(a.label, b.label));
+  }, [tracks, q, type, code, showInactive]);
 
-  const versions = useMemo(
-    () => [...new Set((tracks ?? []).map((t) => versionOf(t.label)).filter(Boolean))].sort((a, b) => a.length - b.length || a.localeCompare(b)),
-    [tracks]
-  );
+  const totalSeconds = shown.reduce((a, t) => a + t.duration_seconds, 0);
 
   async function toggleActive(t: Track) {
     setTracks((prev) => prev!.map((x) => (x.id === t.id ? { ...x, active: !t.active } : x)));
@@ -80,7 +70,9 @@ export default function LibraryPage() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="mr-auto text-2xl font-bold">Library {tracks && <span className="text-base font-normal opacity-60">({tracks.length})</span>}</h1>
+        <h1 className="mr-auto text-2xl font-bold">
+          Library {tracks && <span className="text-base font-normal opacity-60">({shown.length} tracks · {formatDuration(totalSeconds)})</span>}
+        </h1>
         <button onClick={() => setImporting(true)} className="rounded-lg bg-indigo-600 px-5 py-3 font-semibold text-white hover:bg-indigo-700">
           + Add tracks
         </button>
@@ -97,20 +89,6 @@ export default function LibraryPage() {
           {CONTENT_CODES.map((c) => <option key={c} value={c}>{c}: {CONTENT_CODE_INFO[c].name}</option>)}
           <option value="none">No code</option>
         </select>
-        <select className={input} value={cat} onChange={(e) => setCat(e.target.value === "all" ? "all" : Number(e.target.value))}>
-          <option value="all">All categories</option>
-          {CATEGORIES.map((c) => (
-            <option key={c} value={c}>{c} min</option>
-          ))}
-        </select>
-        <select className={input} value={ver} onChange={(e) => setVer(e.target.value)} aria-label="Version letter">
-          <option value="all">All versions</option>
-          {versions.map((v) => <option key={v} value={v}>Version {v}</option>)}
-        </select>
-        <label className="flex items-center gap-2">
-          <input type="checkbox" className="size-5" checked={grouped} onChange={(e) => setGrouped(e.target.checked)} />
-          Group by length
-        </label>
         <label className="flex items-center gap-2">
           <input type="checkbox" className="size-5" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />
           Show inactive
@@ -135,33 +113,18 @@ export default function LibraryPage() {
             <thead className="text-sm uppercase opacity-60">
               <tr>
                 <th className="p-2">Label</th><th className="p-2">Title</th><th className="p-2">Length</th>
-                <th className="p-2">Cat.</th><th className="p-2">Code</th><th className="p-2">Song type</th><th className="p-2">File</th><th className="p-2">Active</th><th className="p-2" />
+                <th className="p-2">Code</th><th className="p-2">Song type</th><th className="p-2">File</th><th className="p-2">Active</th><th className="p-2" />
               </tr>
             </thead>
             <tbody>
-              {shown.map((t, idx) => (
-                <Fragment key={t.id}>
-                {grouped && (idx === 0 || shown[idx - 1].category_minutes !== t.category_minutes) && (() => {
-                  const g = shown.filter((x) => x.category_minutes === t.category_minutes);
-                  return (
-                    <tr className="bg-indigo-500/10">
-                      <td colSpan={9} className="p-2 font-bold">
-                        {t.category_minutes} min
-                        <span className="ml-3 font-normal opacity-70">
-                          {g.length} track{g.length === 1 ? "" : "s"} · {g.map((x) => versionOf(x.label) || "?").join(" ")} · {formatDuration(g.reduce((a, x) => a + x.duration_seconds, 0))} total
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })()}
-                <tr className={`border-t border-black/10 dark:border-white/10 ${t.active ? "" : "opacity-50"}`}>
+              {shown.map((t) => (
+                <tr key={t.id} className={`border-t border-black/10 dark:border-white/10 ${t.active ? "" : "opacity-50"}`}>
                   <td className="p-2"><LabelPill label={t.label} /></td>
                   <td className="p-2">
                     <div className="font-medium">{t.title}</div>
                     <div className="text-sm opacity-60">{t.file_name}{t.storage_path ? " · uploaded" : ""}</div>
                   </td>
                   <td className="p-2 tabular-nums">{formatDuration(t.duration_seconds)}</td>
-                  <td className="p-2">{t.category_minutes}m</td>
                   <td className="p-2">
                     {t.content_code ? (
                       <span title={`${CONTENT_CODE_INFO[t.content_code].name}: ${CONTENT_CODE_INFO[t.content_code].note}`}
@@ -181,10 +144,9 @@ export default function LibraryPage() {
                     <button onClick={() => remove(t)} className="rounded-lg px-3 py-2 text-red-600 hover:bg-black/5 dark:hover:bg-white/10">Delete</button>
                   </td>
                 </tr>
-                </Fragment>
               ))}
               {tracks && shown.length === 0 && tracks.length > 0 && (
-                <tr><td colSpan={9} className="p-6 text-center opacity-60">No tracks match your filters.</td></tr>
+                <tr><td colSpan={8} className="p-6 text-center opacity-60">No tracks match your filters.</td></tr>
               )}
             </tbody>
           </table>

@@ -2,12 +2,12 @@
 import { useRef, useState } from "react";
 import { insertTracks, uploadAudio } from "@/lib/db";
 import {
-  CATEGORIES, CONTENT_CODES, DEFAULT_SONG_TYPE, SONG_TYPES, categoryFromLabel, fileTypeOf, formatDuration, guessCategory, nextLabel,
+  CONTENT_CODES, DEFAULT_SONG_TYPE, SONG_TYPES, fileTypeOf, formatDuration, labelPrefix, nextLabel,
   parseFileName, readDuration, type ContentCode, type SongType, type Track,
 } from "@/lib/tracks";
 import { Modal } from "@/components/Modal";
 
-type Row = { key: number; file: File; label: string; title: string; category: number; seconds: number; upload: boolean; songType: SongType; code: ContentCode | "" };
+type Row = { key: number; file: File; label: string; title: string; seconds: number; upload: boolean; songType: SongType; code: ContentCode | "" };
 
 export function ImportDialog({ existing, onClose, onSaved }: { existing: Track[]; onClose: () => void; onSaved: () => void }) {
   const [rows, setRows] = useState<Row[]>([]);
@@ -24,7 +24,7 @@ export function ImportDialog({ existing, onClose, onSaved }: { existing: Track[]
     const out: Row[] = [];
     for (const r of list) {
       let label = r.label.trim().toUpperCase();
-      if (!label || used.has(label)) label = nextLabel(r.category, used);
+      if (!label || used.has(label)) label = nextLabel(labelPrefix(r.code), used);
       used.add(label);
       out.push({ ...r, label });
     }
@@ -41,22 +41,21 @@ export function ImportDialog({ existing, onClose, onSaved }: { existing: Track[]
       const seconds = await readDuration(file);
       const p = parseFileName(file.name);
       const shownSeconds = seconds || (p.minutes ? p.minutes * 60 : 0);
-      const category = (p.label && categoryFromLabel(p.label)) || guessCategory(shownSeconds);
-      added.push({ key: keyRef.current++, file, label: p.label ?? "", title: p.title, category, seconds: shownSeconds, upload: uploadAll, songType: typeAll, code: p.code ?? "" });
+      added.push({ key: keyRef.current++, file, label: "", title: p.title, seconds: shownSeconds, upload: uploadAll, songType: typeAll, code: p.code ?? "" });
     }
-    // Clear labels that were not parsed so relabel assigns them in order
+    // Labels are suggested from the content code (FI1, FI2, CG1 ...)
     setRows((prev) => relabel([...prev, ...added]));
-    setMsg(skipped.length ? `Skipped (not mp3/m4a/mp4): ${skipped.join(", ")}` : null);
+    setMsg(skipped.length ? `Skipped (not mp3/m4a/mp4/mpeg): ${skipped.join(", ")}` : null);
     setBusy(false);
   }
 
   function update(key: number, patch: Partial<Row>) {
     setRows((prev) => {
       const next = prev.map((r) => (r.key === key ? { ...r, ...patch } : r));
-      // changing category re-suggests a label
-      if (patch.category !== undefined) {
+      // changing the content code re-suggests a label
+      if (patch.code !== undefined) {
         const used = new Set([...existing.map((t) => t.label.toUpperCase()), ...next.filter((r) => r.key !== key).map((r) => r.label.toUpperCase())]);
-        return next.map((r) => (r.key === key ? { ...r, label: nextLabel(patch.category!, used) } : r));
+        return next.map((r) => (r.key === key ? { ...r, label: nextLabel(labelPrefix(patch.code!), used) } : r));
       }
       return next;
     });
@@ -77,7 +76,7 @@ export function ImportDialog({ existing, onClose, onSaved }: { existing: Track[]
         const storage_path = r.upload ? await uploadAudio(r.file) : null;
         payload.push({
           label: labels[i], title: r.title.trim() || r.file.name, duration_seconds: r.seconds,
-          category_minutes: r.category, song_type: r.songType, content_code: r.code || null, file_name: r.file.name, storage_path,
+          song_type: r.songType, content_code: r.code || null, file_name: r.file.name, storage_path,
           file_type: fileTypeOf(r.file.name)!, notes: null, active: true,
         });
       }
@@ -110,12 +109,12 @@ export function ImportDialog({ existing, onClose, onSaved }: { existing: Track[]
             Upload audio to Supabase Storage (enables in-app playback and ZIP)
           </label>
         </div>
-        <p className="text-sm opacity-70">Tip: name files like <code>5A - Song Name.mp3</code> to preset the label. Otherwise labels are suggested automatically. Everything is editable.</p>
+        <p className="text-sm opacity-70">Tip: name files like <code>Song Name - FI42m.mp3</code> to preset the content code and length. Labels are suggested from the code (FI1, FI2, CG1 …). Everything is editable.</p>
         {msg && <p className="opacity-80">{msg}</p>}
         {rows.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-base">
-              <thead className="text-sm uppercase opacity-60"><tr><th className="p-1">Label</th><th className="p-1">Title</th><th className="p-1">Length</th><th className="p-1">Cat.</th><th className="p-1">Code</th><th className="p-1">Song type</th><th className="p-1">Upload</th><th /></tr></thead>
+              <thead className="text-sm uppercase opacity-60"><tr><th className="p-1">Label</th><th className="p-1">Title</th><th className="p-1">Length</th><th className="p-1">Code</th><th className="p-1">Song type</th><th className="p-1">Upload</th><th /></tr></thead>
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.key} className="border-t border-black/10 align-top dark:border-white/10">
@@ -125,11 +124,6 @@ export function ImportDialog({ existing, onClose, onSaved }: { existing: Track[]
                       <div className="mt-1 text-xs opacity-60">{r.file.name}</div>
                     </td>
                     <td className="p-1 tabular-nums">{r.seconds ? formatDuration(r.seconds) : "?"}</td>
-                    <td className="p-1 w-28">
-                      <select className={cell} value={r.category} onChange={(e) => update(r.key, { category: Number(e.target.value) })}>
-                        {CATEGORIES.map((c) => <option key={c} value={c}>{c} min</option>)}
-                      </select>
-                    </td>
                     <td className="p-1 w-24">
                       <select className={cell} value={r.code} onChange={(e) => update(r.key, { code: e.target.value as ContentCode | "" })}>
                         <option value="">-</option>
