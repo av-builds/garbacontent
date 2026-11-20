@@ -208,7 +208,7 @@ function Planner() {
               const ago = recent.get(p.track.id);
               return (
                 <li
-                  key={p.track.id}
+                  key={`${p.track.id}-${i}`}
                   draggable
                   onDragStart={() => setDragFrom(i)}
                   onDragOver={(e) => e.preventDefault()}
