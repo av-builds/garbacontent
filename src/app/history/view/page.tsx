@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { listSessions, type SavedSession } from "@/lib/sessions";
 import { totalSeconds } from "@/lib/generate";
 import { clockAt, shortDate } from "@/lib/time";
@@ -27,7 +27,7 @@ export default function ExportPage() {
 }
 
 function Export() {
-  const { id } = useParams<{ id: string }>();
+  const id = useSearchParams().get("id") ?? "";
   const [all, setAll] = useState<SavedSession[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [hlPinned, setHlPinned] = useState(true);

@@ -1,6 +1,9 @@
-export const GATE_COOKIE = "garba_gate";
+export const GATE_STORAGE_KEY = "garba_gate";
 
-/** Cookie value = sha256 of the password with a fixed salt, so the password itself is never stored. */
+/** Hash of the shared password, baked in at build time (the password itself is never shipped). */
+export const GATE_HASH = process.env.NEXT_PUBLIC_GATE_HASH ?? "";
+
+/** sha256 hex of "garba-gate:v1:<password>". The deploy workflow computes the same value. */
 export async function gateToken(password: string): Promise<string> {
   const data = new TextEncoder().encode(`garba-gate:v1:${password}`);
   const hash = await crypto.subtle.digest("SHA-256", data);
@@ -12,9 +15,4 @@ export function safeEqual(a: string, b: string): boolean {
   let diff = 0;
   for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return diff === 0;
-}
-
-/** Only allow same-site relative paths as post-login targets. */
-export function safeNext(next: string | null | undefined): string {
-  return next && next.startsWith("/") && !next.startsWith("//") ? next : "/library";
 }

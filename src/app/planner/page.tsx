@@ -241,7 +241,7 @@ function Planner() {
           <div className="flex items-center gap-4">
             <button onClick={save} className="rounded-lg bg-emerald-600 px-5 py-3 font-semibold text-white hover:bg-emerald-700">{savedId ? "Update saved plan" : "Save plan"}</button>
             {status && <span>{status}</span>}
-            {savedId && <Link href={`/history/${savedId}`} className="font-semibold text-indigo-600 underline dark:text-indigo-400">Share &amp; export</Link>}
+            {savedId && <Link href={`/history/view?id=${savedId}`} className="font-semibold text-indigo-600 underline dark:text-indigo-400">Share &amp; export</Link>}
           </div>
         </>
       )}

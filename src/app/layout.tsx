@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Link from "next/link";
-import { PlayerProvider } from "@/components/PlayerProvider";
+import { AppShell } from "@/components/AppShell";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -26,18 +25,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col text-lg">
-        <nav className="print:hidden flex gap-2 border-b border-black/10 dark:border-white/15 px-4 py-3 text-base font-semibold">
-          <span className="mr-4 self-center text-xl">Garba Planner</span>
-          <Link href="/library" className="rounded-lg px-4 py-2 hover:bg-black/5 dark:hover:bg-white/10">Library</Link>
-          <Link href="/planner" className="rounded-lg px-4 py-2 hover:bg-black/5 dark:hover:bg-white/10">Planner</Link>
-          <Link href="/history" className="rounded-lg px-4 py-2 hover:bg-black/5 dark:hover:bg-white/10">History</Link>
-          <form method="POST" action="/api/logout" className="ml-auto">
-            <button className="rounded-lg px-4 py-2 opacity-70 hover:bg-black/5 dark:hover:bg-white/10">Log out</button>
-          </form>
-        </nav>
-        <PlayerProvider>
-          <main className="mx-auto w-full max-w-6xl flex-1 p-4">{children}</main>
-        </PlayerProvider>
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );
