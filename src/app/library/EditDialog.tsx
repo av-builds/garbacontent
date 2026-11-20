@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { CATEGORIES, SONG_TYPES, categoryFromLabel, formatDuration, type SongType, type Track } from "@/lib/tracks";
+import { CATEGORIES, CONTENT_CODES, CONTENT_CODE_INFO, SONG_TYPES, categoryFromLabel, formatDuration, type ContentCode, type SongType, type Track } from "@/lib/tracks";
 import { Modal } from "@/components/Modal";
 
 export function EditDialog({ track, existing, onClose, onSaved }: { track: Track; existing: Track[]; onClose: () => void; onSaved: () => void }) {
@@ -9,6 +9,7 @@ export function EditDialog({ track, existing, onClose, onSaved }: { track: Track
   const [title, setTitle] = useState(track.title);
   const [category, setCategory] = useState(track.category_minutes);
   const [songType, setSongType] = useState<SongType>(track.song_type);
+  const [code, setCode] = useState<ContentCode | "">(track.content_code ?? "");
   const [fileName, setFileName] = useState(track.file_name);
   const [mins, setMins] = useState(formatDuration(track.duration_seconds));
   const [notes, setNotes] = useState(track.notes ?? "");
@@ -21,7 +22,7 @@ export function EditDialog({ track, existing, onClose, onSaved }: { track: Track
     if (!m) return setErr("Length must look like 5:10.");
     if (existing.some((t) => t.id !== track.id && t.label.toUpperCase() === l)) return setErr(`Label ${l} is already used.`);
     const { error } = await supabase.from("tracks").update({
-      label: l, title: title.trim(), category_minutes: category, song_type: songType, file_name: fileName.trim(),
+      label: l, title: title.trim(), category_minutes: category, song_type: songType, content_code: code || null, file_name: fileName.trim(),
       duration_seconds: Number(m[1]) * 60 + Number(m[2]), notes: notes.trim() || null,
     }).eq("id", track.id);
     if (error) setErr(error.message);
@@ -47,6 +48,12 @@ export function EditDialog({ track, existing, onClose, onSaved }: { track: Track
         <label className="block">Song type
           <select className={input} value={songType} onChange={(e) => setSongType(e.target.value as SongType)}>
             {SONG_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </label>
+        <label className="block">Content code
+          <select className={input} value={code} onChange={(e) => setCode(e.target.value as ContentCode | "")}>
+            <option value="">None</option>
+            {CONTENT_CODES.map((c) => <option key={c} value={c}>{c}: {CONTENT_CODE_INFO[c].name}</option>)}
           </select>
         </label>
         <label className="block">File name (exact, as in Downloads)<input className={input} value={fileName} onChange={(e) => setFileName(e.target.value)} /></label>

@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { getSession } from "@/lib/sessions";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { DEFAULT_SONG_TYPE, SONG_TYPES, formatDuration, type SongType, type Track } from "@/lib/tracks";
+import { CONTENT_CODES, CONTENT_CODE_INFO, DEFAULT_SONG_TYPE, SONG_TYPES, formatDuration, type ContentCode, type SongType, type Track } from "@/lib/tracks";
 import { generatePlan, totalSeconds, type PlanItem } from "@/lib/generate";
 import { clockAt, dayName, nextSessionDate } from "@/lib/time";
 import { LabelPill } from "@/components/LabelPill";
@@ -30,6 +30,7 @@ function Planner() {
   const [start, setStart] = useState("20:00");
   const [notes, setNotes] = useState("");
   const [types, setTypes] = useState<SongType[]>([DEFAULT_SONG_TYPE]);
+  const [codes, setCodes] = useState<ContentCode[]>([...CONTENT_CODES]);
   const [plan, setPlan] = useState<PlanItem[]>([]);
   const [excluded, setExcluded] = useState<Track[]>([]);
   const [recent, setRecent] = useState<Map<string, number>>(new Map());
@@ -92,7 +93,7 @@ function Planner() {
 
   function generate() {
     if (!tracks) return;
-    setPlan(generatePlan({ tracks: tracks.filter((t) => types.includes(t.song_type)), targetMin: target, current: plan, excluded: new Set(excluded.map((t) => t.id)), recent }));
+    setPlan(generatePlan({ tracks: tracks.filter((t) => types.includes(t.song_type) && (!t.content_code || codes.includes(t.content_code))), targetMin: target, current: plan, excluded: new Set(excluded.map((t) => t.id)), recent }));
     setStatus(null);
   }
 
@@ -164,7 +165,17 @@ function Planner() {
             </label>
           ))}
         </fieldset>
-        <button onClick={generate} disabled={!tracks || !date || types.length === 0} className="rounded-lg bg-indigo-600 px-5 py-3 font-semibold text-white hover:bg-indigo-700 disabled:opacity-40">
+        <fieldset className="flex flex-wrap items-center gap-x-4 gap-y-1 text-base">
+          <legend className="text-sm">Content codes to include</legend>
+          {CONTENT_CODES.map((c) => (
+            <label key={c} className="flex items-center gap-2" title={`${CONTENT_CODE_INFO[c].name}: ${CONTENT_CODE_INFO[c].note}`}>
+              <input type="checkbox" className="size-5" checked={codes.includes(c)}
+                onChange={(e) => setCodes((p) => (e.target.checked ? [...p, c] : p.filter((x) => x !== c)))} />
+              {c}
+            </label>
+          ))}
+        </fieldset>
+        <button onClick={generate} disabled={!tracks || !date || types.length === 0 || codes.length === 0} className="rounded-lg bg-indigo-600 px-5 py-3 font-semibold text-white hover:bg-indigo-700 disabled:opacity-40">
           {plan.length ? "Regenerate (keeps pinned)" : "Generate plan"}
         </button>
       </div>

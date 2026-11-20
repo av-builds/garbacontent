@@ -4,6 +4,15 @@ export const SONG_TYPES = ["Garba", "Ismaili Songs", "Central Asian Content"] as
 export type SongType = (typeof SONG_TYPES)[number];
 export const DEFAULT_SONG_TYPE: SongType = "Garba";
 
+export const CONTENT_CODES = ["FI", "CG", "UG", "IG"] as const;
+export type ContentCode = (typeof CONTENT_CODES)[number];
+export const CONTENT_CODE_INFO: Record<ContentCode, { name: string; note: string }> = {
+  FI: { name: "Full Ismaili", note: "Suitable for the main prayer hall and everywhere else" },
+  CG: { name: "Clean Gujarati", note: "Hindu references removed and verified; anywhere except the prayer hall" },
+  UG: { name: "Unfiltered Gujarati", note: "May have Gujarati/Hindu references; unknown" },
+  IG: { name: "Ismaili + Gujarati mix", note: "Cleanliness unknown, treated as Gujarati for now" },
+};
+
 export type Track = {
   id: string;
   label: string;
@@ -11,9 +20,10 @@ export type Track = {
   duration_seconds: number;
   category_minutes: number;
   song_type: SongType;
+  content_code: ContentCode | null;
   file_name: string;
   storage_path: string | null;
-  file_type: "mp3" | "m4a" | "mp4";
+  file_type: "mp3" | "m4a" | "mp4" | "mpeg";
   notes: string | null;
   active: boolean;
   created_at: string;
@@ -62,17 +72,38 @@ export function nextLabel(category: number, used: Iterable<string>): string {
   }
 }
 
-export function fileTypeOf(name: string): "mp3" | "m4a" | "mp4" | null {
+export function fileTypeOf(name: string): Track["file_type"] | null {
   const ext = name.split(".").pop()?.toLowerCase();
-  return ext === "mp3" || ext === "m4a" || ext === "mp4" ? ext : null;
+  if (ext === "mpg") return "mpeg";
+  return ext === "mp3" || ext === "m4a" || ext === "mp4" || ext === "mpeg" ? ext : null;
 }
 
-/** Splits "5A - Song Name.mp3" into label + title; falls back to cleaned name. */
-export function parseFileName(name: string): { label: string | null; title: string } {
-  const base = name.replace(/\.[^.]+$/, "");
-  const m = /^(\d+[A-Za-z]+)\s*[-_.:]\s*(.+)$/.exec(base);
-  if (m && categoryFromLabel(m[1])) return { label: m[1].toUpperCase(), title: m[2].trim() };
-  return { label: null, title: base.replace(/[_]+/g, " ").trim() };
+/**
+ * Understands "5A - Song Name.mp3" (label) and "Song Name - FI42m.mp3" (content code + minutes).
+ * Falls back to the cleaned file name as the title.
+ */
+export function parseFileName(name: string): {
+  label: string | null;
+  title: string;
+  code: ContentCode | null;
+  minutes: number | null;
+} {
+  let base = name.replace(/\.[^.]+$/, "");
+  let label: string | null = null;
+  let code: ContentCode | null = null;
+  let minutes: number | null = null;
+  const lm = /^(\d+[A-Za-z]+)\s*[-_.:]\s*(.+)$/.exec(base);
+  if (lm && categoryFromLabel(lm[1])) {
+    label = lm[1].toUpperCase();
+    base = lm[2];
+  }
+  const cm = /^(.*?)\s*-\s*(FI|UG|CG|IG)\s*(\d+)\s*(?:m|min)\s*$/i.exec(base);
+  if (cm) {
+    base = cm[1];
+    code = cm[2].toUpperCase() as ContentCode;
+    minutes = Number(cm[3]);
+  }
+  return { label, title: base.replace(/_+/g, " ").trim(), code, minutes };
 }
 
 export function readDuration(file: File): Promise<number> {

@@ -3,7 +3,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { BUCKET } from "@/lib/db";
-import { CATEGORIES, SONG_TYPES, compareLabels, formatDuration, versionOf, type Track } from "@/lib/tracks";
+import { CATEGORIES, CONTENT_CODES, CONTENT_CODE_INFO, SONG_TYPES, compareLabels, formatDuration, versionOf, type Track } from "@/lib/tracks";
 import { LabelPill } from "@/components/LabelPill";
 import { ImportDialog } from "./ImportDialog";
 import { EditDialog } from "./EditDialog";
@@ -16,6 +16,7 @@ export default function LibraryPage() {
   const [cat, setCat] = useState<number | "all">("all");
   const [ver, setVer] = useState("all");
   const [type, setType] = useState<string>("all");
+  const [code, setCode] = useState<string>("all");
   const [grouped, setGrouped] = useState(true);
   const [showInactive, setShowInactive] = useState(true);
   const [importing, setImporting] = useState(false);
@@ -42,10 +43,11 @@ export default function LibraryPage() {
         (cat === "all" || t.category_minutes === cat) &&
         (showInactive || t.active) &&
         (type === "all" || t.song_type === type) &&
+        (code === "all" || t.content_code === code || (code === "none" && !t.content_code)) &&
         (ver === "all" || versionOf(t.label) === ver) &&
         (!s || t.label.toLowerCase().includes(s) || t.title.toLowerCase().includes(s))
     );
-  }, [tracks, q, cat, ver, type, showInactive]);
+  }, [tracks, q, cat, ver, type, code, showInactive]);
 
   const versions = useMemo(
     () => [...new Set((tracks ?? []).map((t) => versionOf(t.label)).filter(Boolean))].sort((a, b) => a.length - b.length || a.localeCompare(b)),
@@ -90,6 +92,11 @@ export default function LibraryPage() {
           <option value="all">All song types</option>
           {SONG_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
+        <select className={input} value={code} onChange={(e) => setCode(e.target.value)} aria-label="Content code">
+          <option value="all">All content codes</option>
+          {CONTENT_CODES.map((c) => <option key={c} value={c}>{c}: {CONTENT_CODE_INFO[c].name}</option>)}
+          <option value="none">No code</option>
+        </select>
         <select className={input} value={cat} onChange={(e) => setCat(e.target.value === "all" ? "all" : Number(e.target.value))}>
           <option value="all">All categories</option>
           {CATEGORIES.map((c) => (
@@ -128,7 +135,7 @@ export default function LibraryPage() {
             <thead className="text-sm uppercase opacity-60">
               <tr>
                 <th className="p-2">Label</th><th className="p-2">Title</th><th className="p-2">Length</th>
-                <th className="p-2">Cat.</th><th className="p-2">Song type</th><th className="p-2">File</th><th className="p-2">Active</th><th className="p-2" />
+                <th className="p-2">Cat.</th><th className="p-2">Code</th><th className="p-2">Song type</th><th className="p-2">File</th><th className="p-2">Active</th><th className="p-2" />
               </tr>
             </thead>
             <tbody>
@@ -138,7 +145,7 @@ export default function LibraryPage() {
                   const g = shown.filter((x) => x.category_minutes === t.category_minutes);
                   return (
                     <tr className="bg-indigo-500/10">
-                      <td colSpan={8} className="p-2 font-bold">
+                      <td colSpan={9} className="p-2 font-bold">
                         {t.category_minutes} min
                         <span className="ml-3 font-normal opacity-70">
                           {g.length} track{g.length === 1 ? "" : "s"} · {g.map((x) => versionOf(x.label) || "?").join(" ")} · {formatDuration(g.reduce((a, x) => a + x.duration_seconds, 0))} total
@@ -155,6 +162,14 @@ export default function LibraryPage() {
                   </td>
                   <td className="p-2 tabular-nums">{formatDuration(t.duration_seconds)}</td>
                   <td className="p-2">{t.category_minutes}m</td>
+                  <td className="p-2">
+                    {t.content_code ? (
+                      <span title={`${CONTENT_CODE_INFO[t.content_code].name}: ${CONTENT_CODE_INFO[t.content_code].note}`}
+                        className={`rounded-md px-2 py-1 text-sm font-bold ${t.content_code === "FI" ? "bg-emerald-600/20 text-emerald-700 dark:text-emerald-300" : t.content_code === "CG" ? "bg-sky-600/20 text-sky-700 dark:text-sky-300" : "bg-amber-500/25 text-amber-800 dark:text-amber-300"}`}>
+                        {t.content_code}
+                      </span>
+                    ) : <span className="opacity-40">-</span>}
+                  </td>
                   <td className="p-2"><span className="rounded-full bg-black/5 px-2 py-1 text-sm dark:bg-white/10">{t.song_type}</span></td>
                   <td className="p-2 uppercase">{t.file_type}</td>
                   <td className="p-2">
@@ -169,7 +184,7 @@ export default function LibraryPage() {
                 </Fragment>
               ))}
               {tracks && shown.length === 0 && tracks.length > 0 && (
-                <tr><td colSpan={8} className="p-6 text-center opacity-60">No tracks match your filters.</td></tr>
+                <tr><td colSpan={9} className="p-6 text-center opacity-60">No tracks match your filters.</td></tr>
               )}
             </tbody>
           </table>
