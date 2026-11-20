@@ -18,7 +18,7 @@ create table public.tracks (
 create table public.sessions (
   id uuid primary key default gen_random_uuid(),
   session_date date not null,
-  day_of_week text generated always as (trim(to_char(session_date, 'Day'))) stored,
+  day_of_week text generated always as ((array['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'])[extract(dow from session_date)::int + 1]) stored,
   target_minutes integer not null default 75,
   start_time time,
   notes text,
